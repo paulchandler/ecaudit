@@ -30,6 +30,8 @@ import ch.qos.logback.classic.LoggerContext;
 import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.core.Appender;
 import com.datastax.oss.driver.api.core.CqlSession;
+import com.datastax.oss.driver.api.core.cql.PreparedStatement;
+import com.datastax.oss.driver.api.core.servererrors.InvalidQueryException;
 import com.datastax.oss.driver.api.core.servererrors.UnauthorizedException;
 import com.ericsson.bss.cassandra.ecaudit.logger.Slf4jAuditLogger;
 import com.ericsson.bss.cassandra.ecaudit.test.daemon.CassandraDaemonForAuditTest;
@@ -93,6 +95,28 @@ public class ITQueryLogger
         session.execute("INSERT INTO school.students (key, value) VALUES (42, 'Kalle')");
 
         assertThat(getLogEntries()).containsOnly("client:'127.0.0.1'|user:'anonymous'|status:'ATTEMPT'|operation:'INSERT INTO school.students (key, value) VALUES (42, 'Kalle')'");
+    }
+    @Test
+    public void testPrepareStatement()
+    {
+        givenTable("school", "students");
+        reset(mockAuditAppender);
+
+        PreparedStatement prepared = session.prepare("INSERT INTO school.students (key, value) VALUES (?, ?)");
+        session.execute(prepared.bind(42, "Kalle"));
+        assertThat(getLogEntries()).containsOnly( "client:'127.0.0.1'|user:'anonymous'|status:'ATTEMPT'|operation:'Prepared: INSERT INTO school.students (key, value) VALUES (?, ?)'",
+                                                  "client:'127.0.0.1'|user:'anonymous'|status:'ATTEMPT'|operation:'INSERT INTO school.students (key, value) VALUES (?, ?)[42, 'Kalle']'");
+    }
+    @Test
+    public void testFailedPrepareStatement()
+    {
+        givenTable("school", "students");
+        reset(mockAuditAppender);
+
+        assertThatExceptionOfType(InvalidQueryException.class).isThrownBy(() ->  session.prepare("INSERT INTO school.invalidestudents (key, value) VALUES (?, ?)"));
+
+        assertThat(getLogEntries()).containsOnly( "client:'127.0.0.1'|user:'anonymous'|status:'ATTEMPT'|operation:'Prepared: INSERT INTO school.invalidestudents (key, value) VALUES (?, ?)'",
+                                                  "client:'127.0.0.1'|user:'anonymous'|status:'FAILED'|operation:'Prepared: INSERT INTO school.invalidestudents (key, value) VALUES (?, ?)'");
     }
 
     @Test
