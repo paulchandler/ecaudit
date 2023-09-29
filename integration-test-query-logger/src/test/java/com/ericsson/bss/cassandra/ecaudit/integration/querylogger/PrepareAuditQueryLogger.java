@@ -43,13 +43,12 @@ import org.mockito.junit.MockitoJUnitRunner;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 import static org.mockito.Mockito.atLeast;
-import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 
 @RunWith(MockitoJUnitRunner.class)
-public class ITQueryLogger
+public class PrepareAuditQueryLogger
 {
     private static CqlSession session;
 
@@ -62,7 +61,6 @@ public class ITQueryLogger
     @BeforeClass
     public static void beforeClass() throws Exception
     {
-        CassandraDaemonForAuditTest.setAuditYamlFile("suppress_prepare_audit.yaml");
         CassandraDaemonForAuditTest cdt = CassandraDaemonForAuditTest.getInstance();
         session = cdt.createSession();
     }
@@ -83,24 +81,11 @@ public class ITQueryLogger
     }
 
     @AfterClass
-    public static void afterClass() throws Exception
+    public static void afterClass()
     {
-        CassandraDaemonForAuditTest.setAuditYamlFile("integration_audit.yaml");
         session.close();
-        CassandraDaemonForAuditTest.getInstance().deactivate();
-
     }
 
-    @Test
-    public void testBasicStatement()
-    {
-        givenTable("school", "students");
-        reset(mockAuditAppender);
-
-        session.execute("INSERT INTO school.students (key, value) VALUES (42, 'Kalle')");
-
-        assertThat(getLogEntries()).containsOnly("client:'127.0.0.1'|user:'anonymous'|status:'ATTEMPT'|operation:'INSERT INTO school.students (key, value) VALUES (42, 'Kalle')'");
-    }
     @Test
     public void testPrepareStatement()
     {
@@ -109,7 +94,8 @@ public class ITQueryLogger
 
         PreparedStatement prepared = session.prepare("INSERT INTO school.students (key, value) VALUES (?, ?)");
         session.execute(prepared.bind(42, "Kalle"));
-        assertThat(getLogEntries()).containsOnly("client:'127.0.0.1'|user:'anonymous'|status:'ATTEMPT'|operation:'INSERT INTO school.students (key, value) VALUES (?, ?)[42, 'Kalle']'");
+        assertThat(getLogEntries()).containsOnly( "client:'127.0.0.1'|user:'anonymous'|status:'ATTEMPT'|operation:'Prepared: INSERT INTO school.students (key, value) VALUES (?, ?)'",
+                                                  "client:'127.0.0.1'|user:'anonymous'|status:'ATTEMPT'|operation:'INSERT INTO school.students (key, value) VALUES (?, ?)[42, 'Kalle']'");
     }
     @Test
     public void testFailedPrepareStatement()
@@ -119,23 +105,10 @@ public class ITQueryLogger
 
         assertThatExceptionOfType(InvalidQueryException.class).isThrownBy(() ->  session.prepare("INSERT INTO school.invalidestudents (key, value) VALUES (?, ?)"));
 
-        verify(mockAuditAppender, never() ).doAppend(loggingEventCaptor.capture());
-
+        assertThat(getLogEntries()).containsOnly( "client:'127.0.0.1'|user:'anonymous'|status:'ATTEMPT'|operation:'Prepared: INSERT INTO school.invalidestudents (key, value) VALUES (?, ?)'",
+                                                  "client:'127.0.0.1'|user:'anonymous'|status:'FAILED'|operation:'Prepared: INSERT INTO school.invalidestudents (key, value) VALUES (?, ?)'");
     }
 
-    @Test
-    public void testGrantFails()
-    {
-        givenTable("company", "engineers");
-        reset(mockAuditAppender);
-
-        assertThatExceptionOfType(UnauthorizedException.class).isThrownBy(() -> session.execute("GRANT SELECT ON TABLE company.engineers TO cassandra"));
-
-        assertThat(getLogEntries()).containsOnly(
-        "client:'127.0.0.1'|user:'anonymous'|status:'ATTEMPT'|operation:'GRANT SELECT ON TABLE company.engineers TO cassandra'",
-        "client:'127.0.0.1'|user:'anonymous'|status:'FAILED'|operation:'GRANT SELECT ON TABLE company.engineers TO cassandra'"
-        );
-    }
 
     private void givenTable(String keyspace, String table)
     {

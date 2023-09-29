@@ -53,6 +53,7 @@ public final class AuditYamlConfig
     public Integer whitelist_cache_update_interval_in_ms;
     public Integer whitelist_cache_max_entries;
     public Boolean whitelist_cache_active_update;
+    public Boolean suppressPrepareStatements;
 
     static AuditYamlConfig createWithoutFile()
     {
@@ -169,5 +170,16 @@ public final class AuditYamlConfig
     public void setWhitelistCacheActiveUpdate(Boolean whitelistCacheActiveUpdate)
     {
         this.whitelist_cache_active_update = whitelistCacheActiveUpdate;
+    }
+    public Boolean isSuppressPrepareStatements()
+    {
+        return suppressPrepareStatements == null
+               ? Boolean.TRUE
+               : suppressPrepareStatements;
+    }
+
+    public void setSuppressPrepareStatements(Boolean suppressPrepareStatements)
+    {
+        this.suppressPrepareStatements = suppressPrepareStatements;
     }
 }

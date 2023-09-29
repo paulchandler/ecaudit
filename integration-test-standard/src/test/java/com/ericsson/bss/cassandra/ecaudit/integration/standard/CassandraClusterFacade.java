@@ -189,6 +189,15 @@ public class CassandraClusterFacade
 
         assertThat(loggingEvents.get(0).getFormattedMessage()).isEqualTo(expectedAuditEntry(auditOperation, username, "ATTEMPT"));
     }
+    void thenAuditLogContainPrepareEntryForUser(String prepareOperation, String auditOperation, String username)
+    {
+        ArgumentCaptor<ILoggingEvent> loggingEventCaptor = ArgumentCaptor.forClass(ILoggingEvent.class);
+        verify(mockAuditAppender, times(2)).doAppend(loggingEventCaptor.capture());
+        List<ILoggingEvent> loggingEvents = loggingEventCaptor.getAllValues();
+
+        assertThat(loggingEvents.get(0).getFormattedMessage()).isEqualTo(expectedAuditEntry(prepareOperation, username, "ATTEMPT"));
+        assertThat(loggingEvents.get(1).getFormattedMessage()).isEqualTo(expectedAuditEntry(auditOperation, username, "ATTEMPT"));
+    }
 
     void thenAuditLogContainOnlyAuthenticationAttemptsForUser(String username)
     {
@@ -208,6 +217,16 @@ public class CassandraClusterFacade
 
         assertThat(loggingEvents.get(0).getFormattedMessage()).isEqualTo(expectedAuditEntry(auditOperation, username, "ATTEMPT"));
         assertThat(loggingEvents.get(1).getFormattedMessage()).isEqualTo(expectedAuditEntry(auditOperation, username, "FAILED"));
+    }
+    void thenAuditLogContainsFailedPreparedEntriesForUser(String prepareOperation, String auditOperation, String username)
+    {
+        ArgumentCaptor<ILoggingEvent> loggingEventCaptor = ArgumentCaptor.forClass(ILoggingEvent.class);
+        verify(mockAuditAppender, times(3)).doAppend(loggingEventCaptor.capture());
+        List<ILoggingEvent> loggingEvents = loggingEventCaptor.getAllValues();
+
+        assertThat(loggingEvents.get(0).getFormattedMessage()).isEqualTo(expectedAuditEntry(prepareOperation, username, "ATTEMPT"));
+        assertThat(loggingEvents.get(1).getFormattedMessage()).isEqualTo(expectedAuditEntry(auditOperation, username, "ATTEMPT"));
+        assertThat(loggingEvents.get(2).getFormattedMessage()).isEqualTo(expectedAuditEntry(auditOperation, username, "FAILED"));
     }
 
     private String expectedAuditEntry(String auditOperation, String username, String status)

@@ -191,7 +191,7 @@ public class ITVerifyChronicleBackend
         PreparedStatement preparedStatement = testSession.prepare("INSERT INTO ks2.tbl (key, value) VALUES (?, ?)");
         testSession.execute(preparedStatement.bind(5, "hepp"));
 
-        thenChronicleLogContainEntryForUser("INSERT INTO ks2.tbl (key, value) VALUES (?, ?)[5, 'hepp']", username);
+        thenChroniclePrepareLogContainEntryForUser("INSERT INTO ks2.tbl (key, value) VALUES (?, ?)[5, 'hepp']", username);
     }
 
     @Test
@@ -225,6 +225,22 @@ public class ITVerifyChronicleBackend
         assertThat(records).hasSize(1);
 
         StoredAuditRecord record = records.get(0);
+        assertThat(record.getOperation()).contains(operation);
+        assertThat(record.getNakedOperation()).isEmpty();
+        assertThat(record.getUser()).contains(username);
+        assertThat(record.getStatus()).contains(Status.ATTEMPT);
+        assertThat(record.getClientAddress()).contains(InetAddress.getLoopbackAddress());
+        assertThat(record.getClientPort().get()).isGreaterThan(0);
+        assertThat(record.getCoordinatorAddress()).contains(FBUtilities.getJustBroadcastAddress());
+        assertThat(record.getTimestamp().get()).isLessThanOrEqualTo(System.currentTimeMillis());
+        assertThat(record.getTimestamp().get()).isGreaterThan(System.currentTimeMillis() - 30_000);
+    }
+    private void thenChroniclePrepareLogContainEntryForUser(String operation, String username)
+    {
+        List<StoredAuditRecord> records = waitAndGetRecords();
+        assertThat(records).hasSize(2);
+
+        StoredAuditRecord record = records.get(1);
         assertThat(record.getOperation()).contains(operation);
         assertThat(record.getNakedOperation()).isEmpty();
         assertThat(record.getUser()).contains(username);

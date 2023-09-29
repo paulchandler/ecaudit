@@ -118,7 +118,7 @@ public class AuditAdapter
      */
     public void auditPrepare(String operation, ClientState state, Status status, long timestamp)
     {
-        if (auditor.shouldLogForStatus(status))
+        if (auditor.shouldLogForStatus(status) && auditor.shouldLogPrepareStatements())
         {
             AuditEntry logEntry = entryBuilderFactory.createEntryBuilder(operation, state)
                                                      .client(state.getRemoteAddress())

@@ -47,6 +47,7 @@ public class DefaultAuditor implements Auditor
     private final AuditMetrics auditMetrics;
     private LogTimingStrategy logTimingStrategy;
 
+
     public DefaultAuditor(AuditLogger logger, AuditFilter filter, AuditObfuscator obfuscator, LogTimingStrategy logTimingStrategy)
     {
         this(logger, filter, obfuscator, new AuditMetrics(), logTimingStrategy);
@@ -121,6 +122,13 @@ public class DefaultAuditor implements Auditor
     {
         return logTimingStrategy.shouldLogFailedBatchSummary();
     }
+
+    @Override
+    public boolean shouldLogPrepareStatements()
+    {
+        return filter.shouldLogPrepareStatements();
+    }
+
 
     @Override
     public void setLogTimingStrategy(LogTimingStrategy logTimingStrategy)

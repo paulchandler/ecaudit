@@ -147,7 +147,7 @@ public class ITVerifyCustomBoundValueSuppressor
         // When
         executePreparedStatement();
         // Then
-        assertThat(getLogEntry()).isEqualTo("operation=INSERT INTO ks1.t1 (key1, key2, key3, val1, val2, val3, val4, val5, val6) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)" +
+        assertThat(getLastLogEntry()).isEqualTo("operation=INSERT INTO ks1.t1 (key1, key2, key3, val1, val2, val3, val4, val5, val6) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)" +
                                             "['PartKey1', 42, 'ClusterKey', <blob>, <list<blob>>, <map<int, list<blob>>>, 43, <tuple<text, blob>>, <mytype>]");
     }
 
@@ -195,6 +195,13 @@ public class ITVerifyCustomBoundValueSuppressor
                                  .map(ILoggingEvent::getFormattedMessage)
                                  .filter(s -> s.contains(INSERT))
                                  .findFirst().get();
+    }
+    private String getLastLogEntry()
+    {
+        verify(mockAuditAppender, atLeastOnce()).doAppend(loggingEventCaptor.capture());
+        ILoggingEvent event = loggingEventCaptor.getValue();
+        return event.getFormattedMessage();
+
     }
 
     private void executePreparedStatement()

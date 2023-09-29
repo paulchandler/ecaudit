@@ -16,5 +16,4 @@
 
 whitelist_cache_validity_in_ms: 0
 
-suppress_prepare_statements: false
-
+suppress_prepare_statements: true

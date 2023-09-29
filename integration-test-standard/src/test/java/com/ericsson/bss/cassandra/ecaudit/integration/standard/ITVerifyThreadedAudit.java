@@ -190,6 +190,9 @@ public class ITVerifyThreadedAudit
                 for (int i = 0; i < 100; i++)
                 {
                     expectedStatements.addAll(Arrays.asList(
+                            "Prepared: INSERT INTO ecks.ectbl (partk, clustk, value) VALUES (?, ?, ?)",
+                            "Prepared: SELECT * FROM ecks.ectbl WHERE partk = ?",
+                            "Prepared: DELETE FROM ecks.ectbl WHERE partk = ?",
                             "INSERT INTO ecks.ectbl (partk, clustk, value) VALUES (?, ?, ?)[" + i + ", '" + i
                                     + "', 'valid']",
                             "SELECT * FROM ecks.ectbl WHERE partk = ?[" + i + "]",
@@ -227,6 +230,11 @@ public class ITVerifyThreadedAudit
                         .prepare("INSERT INTO ecks.ectbl (partk, clustk) VALUES (?, ?)");
 
                 List<String> expectedStatements = new ArrayList<>();
+                List<String> expectedPrepareStatements = new ArrayList<>();
+                expectedPrepareStatements.addAll(Arrays.asList(
+                    "Prepared: INSERT INTO ecks.ectbl (partk, clustk, value) VALUES (?, ?, ?)",
+                    "Prepared: INSERT INTO ecks.ectbl (partk, clustk, value) VALUES (?, ?, 'static')",
+                    "Prepared: INSERT INTO ecks.ectbl (partk, clustk) VALUES (?, ?)"));
 
                 for (int i = 0; i < 10; i++)
                 {
@@ -245,8 +253,10 @@ public class ITVerifyThreadedAudit
                             .build();
                     session.execute(batch);
                 }
+                List<String>  expectedAuditMessages = expectedBatchPrepareAttemptFragmentsAsUser( expectedPrepareStatements, username);
 
-                return expectedBatchAttemptFragmentsAsUser(expectedStatements, username);
+                expectedAuditMessages.addAll( expectedBatchAttemptFragmentsAsUser(expectedStatements, username));
+                return expectedAuditMessages;
             }
         }
     }
@@ -309,6 +319,8 @@ public class ITVerifyThreadedAudit
 
                 List<String> expectedStatements = new ArrayList<>();
 
+                expectedStatements.add("Prepared: " + batch );
+
                 for (int i = 0; i < 10; i++)
                 {
                     expectedStatements.add(batch + String.format("[1234, %d, '1', 'b1', %d, '3', %d, '5']", 100 + i, 200 + i, 300 + i));
@@ -329,6 +341,15 @@ public class ITVerifyThreadedAudit
                 .collect(Collectors.toList());
     }
 
+    private List<String> expectedBatchPrepareAttemptFragmentsAsUser(List<String> statements, String user)
+    {
+        List<String> result = new ArrayList<>();
+        for (String statement : statements)
+        {
+            result.add(String.format("client:'127.0.0.1'|user:'%s'|status:'ATTEMPT'|operation:'%s'", user, statement));
+        }
+        return result;
+    }
     private List<String> expectedBatchAttemptFragmentsAsUser(List<String> statements, String user)
     {
         List<String> result = new ArrayList<>();

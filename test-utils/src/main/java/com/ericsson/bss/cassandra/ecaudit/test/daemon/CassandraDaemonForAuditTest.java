@@ -36,6 +36,7 @@ import org.apache.commons.io.FileUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.apache.cassandra.config.DatabaseDescriptor;
+import org.apache.cassandra.service.ActiveRepairService;
 import org.apache.cassandra.service.CassandraDaemon;
 
 /**
@@ -48,7 +49,9 @@ public class CassandraDaemonForAuditTest // NOSONAR
 
     private static CassandraDaemonForAuditTest cdtSingleton;
 
-    private final CassandraDaemon cassandraDaemon;
+    private CassandraDaemon cassandraDaemon;
+
+    private static String auditYamlFile = "integration_audit.yaml";
 
     private File tempDir;
 
@@ -78,6 +81,12 @@ public class CassandraDaemonForAuditTest // NOSONAR
         cassandraDaemon = new CassandraDaemon(true);
     }
 
+
+    public static void setAuditYamlFile(String auditYamlFile)
+    {
+        CassandraDaemonForAuditTest.auditYamlFile = auditYamlFile;
+    }
+
     /**
      * Setup the Cassandra configuration for this instance.
      */
@@ -103,7 +112,7 @@ public class CassandraDaemonForAuditTest // NOSONAR
         System.setProperty("cassandra.custom_query_handler_class", "com.ericsson.bss.cassandra.ecaudit.handler.AuditQueryHandler");
         System.setProperty("ecaudit.filter_type", "YAML_AND_ROLE");
 
-        Path auditYamlPath = moveResourceFileToTempDirWithSubstitution("integration_audit.yaml");
+        Path auditYamlPath = moveResourceFileToTempDirWithSubstitution(auditYamlFile);
         System.setProperty("com.ericsson.bss.cassandra.ecaudit.config", auditYamlPath.toString());
 
         LOG.info("Using temporary cassandra directory: " + tempDir);
@@ -133,7 +142,7 @@ public class CassandraDaemonForAuditTest // NOSONAR
         }
     }
 
-    private void deactivate()
+    public void deactivate()
     {
         try
         {
@@ -152,6 +161,9 @@ public class CassandraDaemonForAuditTest // NOSONAR
                     LOG.error("Failed to delete temp files", e);
                 }
             }
+            ActiveRepairService.instance.stop();
+            cdtSingleton = null;
+            cassandraDaemon = null;
         }
         catch (InterruptedException e)
         {

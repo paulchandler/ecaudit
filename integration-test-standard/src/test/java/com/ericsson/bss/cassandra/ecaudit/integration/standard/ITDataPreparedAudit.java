@@ -85,17 +85,17 @@ public class ITDataPreparedAudit
     private Object[] parametersForPreparedStatements()
     {
         return new Object[]{
-            new Object[]{ "SELECT * FROM prepks.tbl WHERE key = ?", asList(5), "SELECT * FROM prepks.tbl WHERE key = ?[5]", "select", "data/prepks/tbl" },
-            new Object[]{ "INSERT INTO prepks.tbl (key, value) VALUES (?, ?)", asList(5, "hepp"), "INSERT INTO prepks.tbl (key, value) VALUES (?, ?)[5, 'hepp']", "modify", "data/prepks/tbl" },
-            new Object[]{ "UPDATE prepks.tbl SET value = ? WHERE key = ?", asList("hepp", 34), "UPDATE prepks.tbl SET value = ? WHERE key = ?['hepp', 34]", "modify", "data/prepks/tbl" },
-            new Object[]{ "DELETE value FROM prepks.tbl WHERE key = ?", asList(22), "DELETE value FROM prepks.tbl WHERE key = ?[22]", "modify", "data/prepks/tbl" },
+            new Object[]{ "SELECT * FROM prepks.tbl WHERE key = ?", asList(5), "SELECT * FROM prepks.tbl WHERE key = ?[5]","Prepared: SELECT * FROM prepks.tbl WHERE key = ?", "select", "data/prepks/tbl" },
+            new Object[]{ "INSERT INTO prepks.tbl (key, value) VALUES (?, ?)", asList(5, "hepp"), "INSERT INTO prepks.tbl (key, value) VALUES (?, ?)[5, 'hepp']", "Prepared: INSERT INTO prepks.tbl (key, value) VALUES (?, ?)",  "modify", "data/prepks/tbl" },
+            new Object[]{ "UPDATE prepks.tbl SET value = ? WHERE key = ?", asList("hepp", 34), "UPDATE prepks.tbl SET value = ? WHERE key = ?['hepp', 34]", "Prepared: UPDATE prepks.tbl SET value = ? WHERE key = ?", "modify", "data/prepks/tbl" },
+            new Object[]{ "DELETE value FROM prepks.tbl WHERE key = ?", asList(22), "DELETE value FROM prepks.tbl WHERE key = ?[22]", "Prepared: DELETE value FROM prepks.tbl WHERE key = ?", "modify", "data/prepks/tbl" },
         };
     }
 
     @Test
     @Parameters(method = "parametersForPreparedStatements")
     @SuppressWarnings("unused")
-    public void preparedStatementIsLogged(String statement, List<Object> value, String expectedTrace, String operation, String resource)
+    public void preparedStatementIsLogged(String statement, List<Object> value, String expectedTrace, String expectedPrepare, String operation, String resource)
     {
         PreparedStatement preparedStatement = testSession.prepare(statement);
         testSession.execute(preparedStatement.bind(value.toArray()));
@@ -107,7 +107,8 @@ public class ITDataPreparedAudit
     {
         PreparedStatement preparedStatement = testSession.prepare("INSERT INTO prepks.tbl1 (key, value) VALUES (:k, :c)");
         testSession.execute(preparedStatement.bind().setInt("k", 2));
-        ccf.thenAuditLogContainEntryForUser("INSERT INTO prepks.tbl1 (key, value) VALUES (:k, :c)[2, null]", testUsername);
+        ccf.thenAuditLogContainPrepareEntryForUser("Prepared: INSERT INTO prepks.tbl1 (key, value) VALUES (:k, :c)",
+                                                   "INSERT INTO prepks.tbl1 (key, value) VALUES (:k, :c)[2, null]", testUsername);
     }
 
     @Test
@@ -115,13 +116,14 @@ public class ITDataPreparedAudit
     {
         PreparedStatement preparedStatement = testSession.prepare("INSERT INTO prepks.tbl1 (key, value) VALUES (?, ?)");
         testSession.execute(preparedStatement.bind(3, null));
-        ccf.thenAuditLogContainEntryForUser("INSERT INTO prepks.tbl1 (key, value) VALUES (?, ?)[3, null]", testUsername);
+        ccf.thenAuditLogContainPrepareEntryForUser("Prepared: INSERT INTO prepks.tbl1 (key, value) VALUES (?, ?)",
+                                                   "INSERT INTO prepks.tbl1 (key, value) VALUES (?, ?)[3, null]", testUsername);
     }
 
     @Test
     @Parameters(method = "parametersForPreparedStatements")
     @SuppressWarnings("unused")
-    public void preparedStatementIsWhitelisted(String statement, List<Object> value, String expectedTrace, String operation, String resource)
+    public void preparedStatementIsWhitelisted(String statement, List<Object> value, String expectedTrace, String expectedPrepare, String operation, String resource)
     {
         ccf.givenRoleIsWhitelistedForOperationOnResource(testUsername, operation, resource);
         PreparedStatement preparedStatement = testSession.prepare(statement);
@@ -132,7 +134,7 @@ public class ITDataPreparedAudit
     @Test
     @Parameters(method = "parametersForPreparedStatements")
     @SuppressWarnings("unused")
-    public void preparedStatementIsGrantWhitelisted(String statement, List<Object> value, String expectedTrace, String operation, String resource)
+    public void preparedStatementIsGrantWhitelisted(String statement, List<Object> value, String expectedTrace, String expectedPrepare, String operation, String resource)
     {
         ccf.givenRoleIsWhitelistedForOperationOnResource(testUsername, operation, "grants/" + resource);
         PreparedStatement preparedStatement = testSession.prepare(statement);
@@ -143,7 +145,7 @@ public class ITDataPreparedAudit
     @Test
     @Parameters(method = "parametersForPreparedStatements")
     @SuppressWarnings("unused")
-    public void preparedStatementIsGrantWhitelistedUsingTopLevelGrant(String statement, List<Object> value, String expectedTrace, String operation, String resource)
+    public void preparedStatementIsGrantWhitelistedUsingTopLevelGrant(String statement, List<Object> value, String expectedTrace, String expectedPrepare, String operation, String resource)
     {
         ccf.givenRoleIsWhitelistedForOperationOnResource(testUsername, operation, "grants");
         PreparedStatement preparedStatement = testSession.prepare(statement);
@@ -153,12 +155,12 @@ public class ITDataPreparedAudit
 
     @Test
     @Parameters(method = "parametersForPreparedStatements")
-    public void preparedStatementIsLoggedWhenGrantWhitelistUnauthorized(String statement, List<Object> value, String expectedTrace, String operation, String resource)
+    public void preparedStatementIsLoggedWhenGrantWhitelistUnauthorized(String statement, List<Object> value, String expectedTrace, String expectedPrepare, String operation, String resource)
     {
         ccf.givenRoleIsWhitelistedForOperationOnResource(basicUsername, operation, "grants/" + resource);
         PreparedStatement preparedStatement = basicSession.prepare(statement);
         assertThatExceptionOfType(UnauthorizedException.class)
             .isThrownBy(() -> basicSession.execute(preparedStatement.bind(value.toArray())));
-        ccf.thenAuditLogContainsFailedEntriesForUser(expectedTrace, basicUsername);
+        ccf.thenAuditLogContainsFailedPreparedEntriesForUser(expectedPrepare, expectedTrace, basicUsername);
     }
 }

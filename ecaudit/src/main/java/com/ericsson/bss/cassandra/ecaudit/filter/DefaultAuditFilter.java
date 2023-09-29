@@ -32,4 +32,11 @@ public class DefaultAuditFilter implements AuditFilter {
     {
         // Intentionally left empty
     }
+
+    @Override
+    public boolean shouldLogPrepareStatements()
+    {
+        return true;
+    }
+
 }

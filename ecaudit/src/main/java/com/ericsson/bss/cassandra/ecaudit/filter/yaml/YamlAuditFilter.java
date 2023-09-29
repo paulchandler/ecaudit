@@ -53,4 +53,11 @@ public class YamlAuditFilter implements AuditFilter
     {
         whitelist = auditConfig.getYamlWhitelist();
     }
+
+    @Override
+    public boolean shouldLogPrepareStatements()
+    {
+        return !auditConfig.isSuppressPrepareStatements();
+    }
+
 }
